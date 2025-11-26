@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema, Model } from "mongoose";
 import { IAdmin } from "../types/adminSchema.interface";
+import { fa } from "zod/v4/locales";
 const JWT = require("jsonwebtoken");
-
 const AdminSchema: Schema = new Schema<IAdmin>(
   {
     firstName: {
@@ -17,7 +17,7 @@ const AdminSchema: Schema = new Schema<IAdmin>(
     userGender: {
       type: String,
       enum: ["male", "female", "other"],
-      required: false,
+      required: true,
     },
     email: {
       type: String,
@@ -48,10 +48,35 @@ const AdminSchema: Schema = new Schema<IAdmin>(
       enum: ["superadmin", "admin", "user"],
       default: "user",
     },
+    age: {
+      type: Number,
+      required: false,
+      default: null,
+    },
     phone: {
       type: Number,
       trim: true,
       required: true,
+    },
+    country: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    state: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    city: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    dob: {
+      type: Date,
+      required: false,
+      default: null,
     },
     isActive: {
       type: Boolean,
@@ -71,17 +96,26 @@ const AdminSchema: Schema = new Schema<IAdmin>(
     },
     status: {
       type: String,
-      enum: ["pending", "approve", "inactive", "blocked", "suspend"],
+      enum: ["pending", "approve", "inactive", "blocked", "suspend", "active"],
       default: "pending",
     },
     accountType: {
-      type: String as any,
+      type: String,
       enum: ["premium", "free", "basic", "business"],
       default: "free",
     },
     paymentStatus: {
-      type: Boolean,
-      default: false,
+      type: String,
+      enum: [
+        "pending",
+        "success",
+        "failed",
+        "cancelled",
+        "chargedback",
+        "expired",
+        "inprogress",
+      ],
+      default: "pending",
     },
     slugInfo: {
       type: String,
@@ -105,6 +139,26 @@ const AdminSchema: Schema = new Schema<IAdmin>(
     },
     lastLogout: {
       type: Date,
+      default: null,
+    },
+    refreshToken: {
+      type: String,
+      required: false,
+      default: null,
+    },
+    authToken: {
+      type: String,
+      required: false,
+      default: null,
+    },
+    authTokenExpireTime: {
+      type: Number,
+      required: false,
+      default: null,
+    },
+    refreshTokenExpireTime: {
+      type: Number,
+      required: false,
       default: null,
     },
   },

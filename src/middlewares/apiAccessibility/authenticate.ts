@@ -39,7 +39,7 @@ export const authenticate = (
       });
     }
 
-    if (setStatus !== "approve") {
+    if (setStatus !== "active") {
       return res.status(403).json({
         status: 403,
         success: false,

@@ -42,6 +42,29 @@ export const registrationFormSchema = z.object({
       message: "Phone number must be digits and may start with '+'",
     }),
 
+  dob: z.preprocess(
+    (arg) => (arg ? new Date(String(arg)) : undefined),
+    z
+      .date()
+      .optional()
+      .refine((d) => (d === undefined ? true : !isNaN(d.getTime())), {
+        message: "Invalid date format for dob",
+      })
+      .refine((d) => (d === undefined ? true : d <= new Date()), {
+        message: "DOB cannot be in the future",
+      })
+      .refine(
+        (d) => {
+          if (!d) return true;
+          const minAge = 13;
+          const cutoff = new Date();
+          cutoff.setFullYear(cutoff.getFullYear() - minAge);
+          return d <= cutoff;
+        },
+        { message: "User must be at least 13 years old" }
+      )
+  ),
+
   passWord: z
     .string()
     .min(8, { message: "Password must be at least 8 characters" })
@@ -59,4 +82,28 @@ export const registrationFormSchema = z.object({
     .refine((val) => !/\s/.test(val), {
       message: "Password must not contain spaces",
     }),
+
+  userGender: z.preprocess(
+    (arg) => (typeof arg === "string" ? arg.trim() : arg),
+    z
+      .string()
+      .min(1, { message: "userGender is required" })
+      .refine((val) => ["male", "female", "other"].includes(val), {
+        message: "Invalid user gender",
+      })
+  ),
+  country: z
+    .string()
+    .min(1, { message: "Country is required" })
+    .max(100, { message: "Country must be under 100 characters" }),
+
+  state: z
+    .string()
+    .min(1, { message: "State is required" })
+    .max(100, { message: "State must be under 100 characters" }),
+
+  city: z
+    .string()
+    .min(1, { message: "City is required" })
+    .max(100, { message: "City must be under 100 characters" }),
 });

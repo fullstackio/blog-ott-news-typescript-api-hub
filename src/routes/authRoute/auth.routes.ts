@@ -1,9 +1,15 @@
-/**
- * @swagger
- * tags:
- *   name: Auth
- *   description: Authentication and User Management
- */
+const express = require("express");
+const router = express.Router();
+const adminControllers = require("../../controllers/authControllers/auth.controller");
+import { SingnInValidate } from "../../middlewares/authMiddleware/signinValidator.middleware";
+import { SingnUPValidate } from "../../middlewares/authMiddleware/signupValidator.middleware";
+import { apiKeyAuth } from "../../middlewares/staticAuth/apiKeyAuthStatic";
+import { recheckEmailOtp } from "../../validation/authValidator/recheck.userEmail";
+import { userOtpValidation } from "../../validation/authValidator/signin.userValidator";
+import { loginFormSchema } from "../../validation/authValidator/signin.validator";
+import { registrationFormSchema } from "../../validation/authValidator/signup.validator";
+
+// Signin route
 
 /**
  * @swagger
@@ -20,28 +26,63 @@
  *             properties:
  *               email:
  *                 type: string
+ *                 description: User's email address
  *               passWord:
  *                 type: string
+ *                 description: User's password
  *     responses:
  *       200:
- *         description: User logged in successfully
+ *         description: User logged in successfully, tokens returned
+ *       400:
+ *         description: Email or password is required
  *       401:
- *         description: Invalid credentials
+ *         description: Invalid credentials or user does not exist
+ *       403:
+ *         description: Account not verified, suspended, inactive, or deactivated
+ *       500:
+ *         description: Internal Server Error
  */
-const express = require("express");
-const router = express.Router();
-const adminControllers = require("../../controllers/authControllers/auth.controller");
-import { SingnInValidate } from "../../middlewares/authMiddleware/signinValidator.middleware";
-import { SingnUPValidate } from "../../middlewares/authMiddleware/signupValidator.middleware";
-import { apiKeyAuth } from "../../middlewares/staticAuth/apiKeyAuthStatic";
-import { loginFormSchema } from "../../validation/authValidator/signin.validator";
-import { registrationFormSchema } from "../../validation/authValidator/signup.validator";
-
-// Signin route
 router
   .route("/signin")
   .post(SingnInValidate(loginFormSchema), adminControllers.signIn);
 
+/**
+ * @swagger
+ * /admin/verify-user-account:
+ *   post:
+ *     summary: Verify user account with OTP
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: User's email address
+ *               otp:
+ *                 type: string
+ *                 description: One-time password sent to user's email
+ *     responses:
+ *       200:
+ *         description: OTP verified, account activated, welcome mail sent
+ *       400:
+ *         description: Email and OTP are required
+ *       401:
+ *         description: Invalid OTP
+ *       404:
+ *         description: User not found
+ *       410:
+ *         description: OTP expired
+ *       500:
+ *         description: Internal Server Error
+ */
+
+router
+  .route("/verify-user-account")
+  .post(SingnInValidate(userOtpValidation), adminControllers.verifyOtp);
 /**
  * @swagger
  * /admin/signup:
@@ -57,22 +98,43 @@ router
  *             properties:
  *               firstName:
  *                 type: string
+ *                 description: User's first name
  *               lastName:
  *                 type: string
+ *                 description: User's last name
  *               userGender:
  *                 type: string
  *                 enum: [male, female, other]
+ *                 description: User's gender
  *               email:
  *                 type: string
+ *                 description: User's email address
  *               phone:
  *                 type: string
+ *                 description: User's phone number
  *               passWord:
  *                 type: string
+ *                 description: User's password
+ *               country:
+ *                 type: string
+ *                 description: Country
+ *               state:
+ *                 type: string
+ *                 description: State
+ *               city:
+ *                 type: string
+ *                 description: City
+ *               dob:
+ *                 type: string
+ *                 format: date
+ *                 description: Date of birth
  *     responses:
  *       201:
  *         description: User registered successfully
  *       400:
  *         description: User already exists or validation error
+ *       500:
+ *         description: Internal Server Error
  */
 router
   .route("/signup")
@@ -249,5 +311,9 @@ router.route("/delete-user-hard/:id").delete(adminControllers.deleteUserHard);
  */
 
 router.route("/delete-user/:id").delete(adminControllers.deleteUserHard);
+
+router
+  .route("/recheck-user-email")
+  .post(SingnInValidate(recheckEmailOtp), adminControllers.recheckEmail);
 
 export default router;
