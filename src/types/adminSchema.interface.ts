@@ -1,8 +1,9 @@
 import { AccountType } from "../enums/authEnum/accountType";
 
 export interface IAdmin extends Document {
-  authTokenExpireTime?: number;
-  refreshTokenExpireTime?: number;
+  currentStatus?: string;
+  authTokenExpireTime?: Date;
+  refreshTokenExpireTime?: Date;
   firstName: string;
   lastName: string;
   userGender?: string;
@@ -19,12 +20,23 @@ export interface IAdmin extends Document {
   address?: string;
   dob?: Date;
   age?: number;
+  currentAge?: number;
   profileImage?: string;
   isActive: boolean;
   isDeleted: boolean;
   deviceInfo: object;
+  devices?: string[];
   paymentStatus: string;
-  accountType: AccountType;
+  accountType?: AccountType | string;
+  accountAtmosphere:
+    | "company"
+    | "institute"
+    | "individual"
+    | "ngo"
+    | "school"
+    | "university"
+    | "other";
+  accountAtmosphereName?: string;
   otp?: number;
   otpExpires?: Date;
   refreshToken?: string;

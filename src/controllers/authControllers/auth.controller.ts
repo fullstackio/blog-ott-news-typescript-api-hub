@@ -15,6 +15,8 @@ export const signUp = async (req: any, res: any) => {
     const {
       firstName,
       lastName,
+      accountAtmosphere,
+      accountAtmosphereName,
       userGender,
       email,
       phone,
@@ -46,6 +48,11 @@ export const signUp = async (req: any, res: any) => {
     const userId = generateUserId(firstName, lastName);
     const uniqueId = generateUniqueUserId();
     const deviceInfo = getDeviceInfo(req);
+    // Device ID for restriction: vendor-type-hostname
+    const vendor = deviceInfo?.deviceVendor || "unknown";
+    const type = deviceInfo?.deviceType || "desktop";
+    const hostname = os.hostname();
+    const deviceId = `${vendor}-${type}-${hostname}`;
     const otp = generateOtp();
     // const otpExpires = Date.now() + 30 * 1000; // 30 Seconds
     const otpExpires = Date.now() + 4 * 60 * 60 * 1000; // 4 hours
@@ -67,6 +74,24 @@ export const signUp = async (req: any, res: any) => {
 
     const age = calculateAge(dob);
 
+    const networkInterfaces = os.networkInterfaces();
+    // Get unique, non-internal, non-empty MAC addresses
+    const macAddresses = Array.from(
+      new Set(
+        Object.values(networkInterfaces)
+          .flat()
+          .filter(
+            (iface) =>
+              iface &&
+              !iface.internal &&
+              iface.mac &&
+              iface.mac !== "00:00:00:00:00:00" &&
+              iface.mac !== ""
+          )
+          .map((iface) => iface && iface.mac)
+      )
+    );
+
     const serverInfo = {
       hostname: os.hostname(),
       platform: os.platform(),
@@ -75,6 +100,7 @@ export const signUp = async (req: any, res: any) => {
       uptime: os.uptime(),
       totalMemory: os.totalmem(),
       freeMemory: os.freemem(),
+      macAddresses, // Array of unique device MAC addresses
     };
 
     const newAdmin = await Admin.create({
@@ -89,15 +115,19 @@ export const signUp = async (req: any, res: any) => {
       address,
       dob,
       age,
+      currentAge: age,
       userId,
       uniqueId,
       passWord: hashedPassword,
       deviceInfo,
+      devices: [deviceId],
       slugInfo: slug,
       timeZone: timezone,
       otp,
       otpExpires,
       setSystemServerInfo: serverInfo,
+      accountAtmosphere,
+      accountAtmosphereName,
       // Use _id for refreshToken payload for consistency
       // Will be set after creation below
     });
@@ -149,6 +179,8 @@ export const signUp = async (req: any, res: any) => {
           isDeleted: newAdmin.isDeleted,
           sysOtp: newAdmin.otp,
           sysOtpExpire: newAdmin.otpExpires,
+          accountAtmosphere: newAdmin.accountAtmosphere,
+          accountAtmosphereName: newAdmin.accountAtmosphereName,
         },
         auth: {
           token:
@@ -264,6 +296,7 @@ export const verifyOtp = async (req: any, res: any) => {
 };
 
 export const signIn = async (req: any, res: any) => {
+  const UserLogin = require("../../models/userLogin.model").default;
   try {
     const { email, passWord } = req.body;
 
@@ -293,6 +326,65 @@ export const signIn = async (req: any, res: any) => {
         success: false,
         message: "User does not exist!",
       });
+    }
+
+    // Device restriction logic (after isUserExist is defined)
+    const deviceInfoObj = getDeviceInfo(req);
+    let deviceId = req.headers["x-device-id"] || req.body.deviceId;
+    if (!deviceId) {
+      const vendor = deviceInfoObj?.deviceVendor || "unknown";
+      const type = deviceInfoObj?.deviceType || "desktop";
+      const hostname = os.hostname();
+      deviceId = `${vendor}-${type}-${hostname}`;
+    }
+    let deviceLimit = 3;
+    if (isUserExist.accountType === "basic") deviceLimit = 5;
+    else if (isUserExist.accountType === "premium") deviceLimit = 10;
+    else if (isUserExist.accountType === "business") deviceLimit = 15;
+    let isNewDevice = false;
+    if (isUserExist.role !== "admin") {
+      if (!Array.isArray(isUserExist.devices)) isUserExist.devices = [];
+      if (!deviceId) {
+        return res.status(400).json({
+          status: 400,
+          success: false,
+          message: "Device ID is required for login.",
+        });
+      }
+      if (
+        !isUserExist.devices.includes(deviceId) &&
+        isUserExist.devices.length >= deviceLimit
+      ) {
+        return res.status(403).json({
+          status: 403,
+          success: false,
+          message: `Device limit reached for your account type (${isUserExist.accountType}). Please remove a device to continue.`,
+        });
+      }
+      if (!isUserExist.devices.includes(deviceId)) {
+        isUserExist.devices.push(deviceId);
+        await isUserExist.save();
+        isNewDevice = true;
+      }
+    }
+
+    // If user signed in from a new device, send notification email
+    if (isNewDevice) {
+      try {
+        const {
+          sendNewDeviceLoginMail,
+        } = require("../../services/mailer/newDeviceMail.service");
+        await sendNewDeviceLoginMail({
+          to: isUserExist.email,
+          userName: isUserExist.firstName + " " + isUserExist.lastName,
+          userEmail: isUserExist.email,
+          userId: isUserExist.userId,
+          deviceId,
+          deviceDetails: deviceInfoObj,
+        });
+      } catch (mailError) {
+        console.error("Error sending new device login mail:", mailError);
+      }
     }
 
     // Check account status
@@ -335,42 +427,63 @@ export const signIn = async (req: any, res: any) => {
       return res.status(401).json({
         status: 401,
         success: false,
-        message: "Invalid email or password",
+        message: "Invalid password",
       });
     }
 
     // Authenticated successfully
-    // Always issue a new refresh token and access token on login
-    const refreshTokenExpireTime = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
-    const authTokenExpireTime = Date.now() + 15 * 60 * 1000; // 15 minutes
-
-    // Generate tokens
+    // Update or create user login record
+    const loginData = {
+      id: isUserExist._id.toString(),
+      firstName: isUserExist.firstName,
+      lastName: isUserExist.lastName,
+      userGender: isUserExist.userGender,
+      email: isUserExist.email,
+      userId: isUserExist.userId,
+      role: isUserExist.role,
+      lastLogin: new Date(),
+      status: isUserExist.status,
+      isActive: isUserExist.isActive,
+      currentStatus: "active",
+      devices: isUserExist.devices,
+    };
+    await UserLogin.findOneAndUpdate(
+      { id: isUserExist._id.toString() },
+      loginData,
+      { upsert: true, new: true }
+    );
+    // Use duration strings for JWT expiration
     const payload = {
       id: isUserExist._id.toString(),
-      setFirstName: isUserExist.firstName,
-      setLastName: isUserExist.lastName,
-      setemail: isUserExist.email,
-      setUserId: isUserExist.userId,
-      setUserUniqueId: isUserExist.uniqueId,
-      setRole: isUserExist.role,
-      setStatus: isUserExist.status,
+      firstName: isUserExist.firstName,
+      lastName: isUserExist.lastName,
+      email: isUserExist.email,
+      userId: isUserExist.userId,
+      uniqueId: isUserExist.uniqueId,
+      role: isUserExist.role,
+      status: isUserExist.status,
+      isActive: isUserExist.isActive === true,
+      isDeleted: isUserExist.isDeleted === true,
     };
-
     const accessToken = JWT.sign(payload, process.env.JWT_SECREATE_TOKEN, {
-      expiresIn: authTokenExpireTime,
+      expiresIn: "15m",
     });
     const refreshToken = JWT.sign(
       { id: isUserExist._id },
       process.env.JWT_REFRESH_TOKEN,
       {
-        expiresIn: refreshTokenExpireTime,
+        expiresIn: "7d",
       }
     );
 
+    // Calculate absolute expiration times for reference
+    const authTokenExpireTime = Date.now() + 15 * 60 * 1000;
+    const refreshTokenExpireTime = Date.now() + 7 * 24 * 60 * 60 * 1000;
+
     isUserExist.refreshToken = refreshToken;
     isUserExist.authToken = accessToken;
-    isUserExist.refreshTokenExpireTime = refreshTokenExpireTime;
-    isUserExist.authTokenExpireTime = authTokenExpireTime;
+    isUserExist.refreshTokenExpireTime = new Date(refreshTokenExpireTime);
+    isUserExist.authTokenExpireTime = new Date(authTokenExpireTime);
     await isUserExist.save();
 
     const userData = {
@@ -735,7 +848,7 @@ export const refreshToken = async (req: any, res: any) => {
 
     // Update user document with new access token and expiry
     user.authToken = newAccessToken;
-    user.authTokenExpireTime = newAccessTokenExpireTime;
+    user.authTokenExpireTime = new Date(newAccessTokenExpireTime);
     await user.save();
 
     res.status(200).json({
@@ -808,6 +921,7 @@ export const recheckEmail = async (req: any, res: any) => {
     // Generate new OTP and expiry
     const otp = Math.floor(100000 + Math.random() * 900000); // 6-digit OTP
     const otpExpires = Date.now() + 4 * 60 * 60 * 1000; // 4 hours
+    // Update OTP and expiry in DB
     user.otp = otp;
     user.otpExpires = new Date(otpExpires);
     await user.save();
@@ -829,10 +943,278 @@ export const recheckEmail = async (req: any, res: any) => {
       status: 200,
       success: true,
       message: "OTP sent to registered email",
+      data: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        userId: user.userId,
+        uniqueId: user.uniqueId,
+        otp: user.otp,
+        otpExpires: user.otpExpires,
+      },
     });
   } catch (error) {
     console.error("recheckEmail error:", error);
     return res.status(500).json({
+      status: 500,
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
+export const verifyPasswordResetOtp = async (req: any, res: any) => {
+  try {
+    // Debug: log incoming body and headers
+    console.log("[verifyPasswordResetOtp] req.body:", req.body);
+    console.log("[verifyPasswordResetOtp] req.headers:", {
+      "x-user-id": req.headers["x-user-id"],
+      "x-user-email": req.headers["x-user-email"],
+      "x-id": req.headers["x-id"],
+    });
+
+    // Get otp from body, user._id, userId, email, and id from headers
+    const { otp } = req.body;
+    const userId = req.headers["x-user-id"] || req.headers["user-id"];
+    const email = req.headers["x-user-email"] || req.headers["user-email"];
+    const id = req.headers["x-id"] || req.headers["id"];
+
+    if (!email || !userId || !otp || !id) {
+      return res.status(400).json({
+        status: 400,
+        success: false,
+        message:
+          "Email, userId, id (in headers), and OTP (in body) are required",
+      });
+    }
+    // Find user by _id, email, and userId for extra security
+    const user = await Admin.findOne({ _id: id, email, userId });
+    if (!user) {
+      return res.status(404).json({
+        status: 404,
+        success: false,
+        message: "User not found with provided email and userId",
+      });
+    }
+    // Use otp and otpExpires for verification
+    if (String(user.otp) !== String(otp)) {
+      return res.status(401).json({
+        status: 401,
+        success: false,
+        message: "Invalid OTP",
+      });
+    }
+    // otpExpires can be a string or Date, so convert to timestamp safely
+    const otpExpireTime = user.otpExpires
+      ? new Date(user.otpExpires).getTime()
+      : 0;
+    if (!user.otpExpires || Date.now() > otpExpireTime) {
+      return res.status(410).json({
+        status: 410,
+        success: false,
+        message: "OTP expired",
+      });
+    }
+    // Clear OTP fields after verification
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    user.updatedAt = new Date();
+    await user.save();
+
+    // Send response for password reset flow
+    res.status(200).json({
+      status: 200,
+      success: true,
+      message: "OTP verified. You can now reset your password.",
+      data: {
+        _id: user._id,
+        id: user._id, // also return as id
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        userId: user.userId,
+        uniqueId: user.uniqueId,
+      },
+    });
+  } catch (error) {
+    console.error("OTP verification error:", error);
+    res
+      .status(500)
+      .json({ status: 500, success: false, message: "Internal Server Error" });
+  }
+};
+
+export const resetPassword = async (req: any, res: any) => {
+  try {
+    const { newPassword } = req.body;
+    const userId = req.headers["x-user-id"] || req.headers["user-id"];
+    const email = req.headers["x-user-email"] || req.headers["user-email"];
+    const id = req.headers["x-id"] || req.headers["id"];
+
+    if (!newPassword || !userId || !email || !id) {
+      return res.status(400).json({
+        status: 400,
+        success: false,
+        message:
+          "New password, email, userId, and id (in headers) are required",
+      });
+    }
+
+    const user = await Admin.findOne({ _id: id, email, userId });
+    if (!user) {
+      return res.status(404).json({
+        status: 404,
+        success: false,
+        message: "User not found with provided email and userId",
+      });
+    }
+
+    user.passWord = await bcrypt.hash(newPassword, 12);
+    user.updatedAt = new Date();
+    await user.save();
+
+    res.status(200).json({
+      status: 200,
+      success: true,
+      message: "Password reset successful",
+      data: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        userId: user.userId,
+        uniqueId: user.uniqueId,
+      },
+    });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res
+      .status(500)
+      .json({ status: 500, success: false, message: "Internal Server Error" });
+  }
+};
+
+export const getSignedInUserDetails = async (req: any, res: any) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(400).json({
+        status: 400,
+        success: false,
+        message: "User ID is required",
+      });
+    }
+    const user = await Admin.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        status: 404,
+        success: false,
+        message: "User not found",
+      });
+    }
+    if (!user.isActive) {
+      return res.status(403).json({
+        status: 403,
+        success: false,
+        message: "User account is not active",
+      });
+    }
+    res.status(200).json({
+      status: 200,
+      success: true,
+      message: "Signed-in user details fetched successfully",
+      data: user,
+    });
+  } catch (error) {
+    console.error("Get signed-in user details error:", error);
+    res.status(500).json({
+      status: 500,
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+export const getSignedInUsers = async (req: any, res: any) => {
+  try {
+    // Find all users with currentStatus 'active' (signed in) from UserLogin collection
+    const UserLogin = require("../../models/userLogin.model").default;
+    const users = await UserLogin.find({}).sort({ updatedAt: -1 });
+    if (!users.length) {
+      return res.status(200).json({
+        status: 200,
+        success: false,
+        message: "No signed-in users found",
+        data: [],
+        totalUserLength: 0,
+      });
+    }
+    // Remove duplicate 'id' field from each user object
+    const cleanedUsers = users.map((user: any) => {
+      const obj = user.toObject();
+      if (obj.id) delete obj.id;
+      return obj;
+    });
+    res.status(200).json({
+      status: 200,
+      success: true,
+      message: "Signed-in users fetched successfully",
+      data: cleanedUsers,
+      totalUserLength: cleanedUsers.length,
+    });
+  } catch (error) {
+    console.error("Get signed-in users error:", error);
+    res.status(500).json({
+      status: 500,
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+// Logout endpoint: sets currentStatus to 'inactive' for the user
+export const logout = async (req: any, res: any) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(400).json({
+        status: 400,
+        success: false,
+        message: "User ID is required",
+      });
+    }
+    const UserLogin = require("../../models/userLogin.model").default;
+    const userLogin = await UserLogin.findOne({ id: userId });
+    if (!userLogin) {
+      return res.status(404).json({
+        status: 404,
+        success: false,
+        message: "User login record not found",
+      });
+    }
+    userLogin.currentStatus = "logout";
+    await userLogin.save();
+
+    // Update Admin collection fields
+    const user = await Admin.findById(userId);
+    if (user) {
+      user.lastLogin = new Date();
+      user.lastLogout = new Date();
+      user.refreshToken = "";
+      user.authToken = "";
+      user.authTokenExpireTime = undefined;
+      user.refreshTokenExpireTime = undefined;
+      await user.save();
+    }
+
+    res.status(200).json({
+      status: 200,
+      success: true,
+      message:
+        "User logged out successfully. Status set to inactive in UserLogin and tokens cleared in Admin.",
+    });
+  } catch (error) {
+    console.error("Logout error:", error);
+    res.status(500).json({
       status: 500,
       success: false,
       message: "Internal Server Error",

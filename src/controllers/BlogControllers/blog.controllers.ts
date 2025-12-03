@@ -39,7 +39,7 @@ export const addBlog = async (req: Request, res: Response) => {
       id: decoded.id,
       firstName: decoded.setFirstName,
       lastName: decoded.setLastName,
-      email: decoded.setemail, // not setEmail
+      email: decoded.setemail,
       userId: decoded.setUserId,
       uniqueId: decoded.setUserUniqueId,
       role: decoded.setRole,

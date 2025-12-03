@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { ZodSchema, ZodError, ZodObject } from "zod";
 
-export const SingnInValidate =
+export const SubscriptionNewsletterValidate =
   (schema: ZodSchema) =>
   async (req: Request, res: Response, next: NextFunction) => {
     try {

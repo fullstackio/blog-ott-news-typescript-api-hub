@@ -71,7 +71,7 @@ router
   .route("/all-blogs")
   .get(
     authenticate,
-    authorizeRoles("user", "admin"),
+    authorizeRoles("user", "admin", "superadmin"),
     blogControllers.getAllBlogs
   );
 

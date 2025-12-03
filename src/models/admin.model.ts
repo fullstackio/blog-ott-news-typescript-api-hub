@@ -14,6 +14,23 @@ const AdminSchema: Schema = new Schema<IAdmin>(
       required: [true, "Last name is required"],
       trim: true,
     },
+    accountAtmosphere: {
+      type: String,
+      enum: [
+        "company",
+        "institute",
+        "individual",
+        "ngo",
+        "school",
+        "university",
+        "other",
+      ],
+      required: true,
+    },
+    accountAtmosphereName: {
+      type: String,
+      required: false,
+    },
     userGender: {
       type: String,
       enum: ["male", "female", "other"],
@@ -49,6 +66,11 @@ const AdminSchema: Schema = new Schema<IAdmin>(
       default: "user",
     },
     age: {
+      type: Number,
+      required: false,
+      default: null,
+    },
+    currentAge: {
       type: Number,
       required: false,
       default: null,
@@ -89,6 +111,10 @@ const AdminSchema: Schema = new Schema<IAdmin>(
     deviceInfo: {
       type: Object,
       required: false,
+    },
+    devices: {
+      type: [String], // Array of device IDs or tokens
+      default: [],
     },
     setSystemServerInfo: {
       type: Object,
@@ -141,6 +167,11 @@ const AdminSchema: Schema = new Schema<IAdmin>(
       type: Date,
       default: null,
     },
+    currentStatus: {
+      type: String,
+      enum: ["active", "inactive"],
+      default: "inactive",
+    },
     refreshToken: {
       type: String,
       required: false,
@@ -176,7 +207,7 @@ AdminSchema.methods.generatedAuthToken = async function () {
       id: this._id.toString(),
       setFirstName: this.firstName,
       setLastName: this.lastName,
-      setEmail: this.email,
+      setemail: this.email,
       setUserId: this.userId,
       setUserUniqueId: this.uniqueId,
       setRole: this.role,
@@ -203,6 +234,12 @@ AdminSchema.methods.generatedAuthToken = async function () {
       expiresIn: "7d",
       header,
     });
+
+    // Debug log: decode token to check exp
+    const decodedAccess = JWT.decode(accessToken);
+    const decodedRefresh = JWT.decode(refreshToken);
+    console.log("[DEBUG] JWT access payload:", decodedAccess);
+    console.log("[DEBUG] JWT refresh payload:", decodedRefresh);
 
     return {
       accessToken,
