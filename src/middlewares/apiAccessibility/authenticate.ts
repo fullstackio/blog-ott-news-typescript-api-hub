@@ -16,15 +16,16 @@ export const authenticate = (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+): void => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({
+    res.status(401).json({
       status: 401,
       success: false,
       message: "Access token missing or malformed",
     });
+    return;
   }
 
   const token = authHeader.split(" ")[1];
@@ -48,11 +49,12 @@ export const authenticate = (
 
     const emailValue = setEmail || setemail || email;
     if (!id || !emailValue) {
-      return res.status(403).json({
+      res.status(403).json({
         status: 403,
         success: false,
         message: "Invalid token: missing user info",
       });
+      return;
     }
 
     const statusValue = setStatus || status;
@@ -66,18 +68,20 @@ export const authenticate = (
       role,
     });
     if (!statusActive) {
-      return res.status(403).json({
+      res.status(403).json({
         status: 403,
         success: false,
         message: "Invalid token: Account is not active",
       });
+      return;
     }
     if (!isActiveValue) {
-      return res.status(403).json({
+      res.status(403).json({
         status: 403,
         success: false,
         message: "Invalid token: Email id is not approved",
       });
+      return;
     }
 
     // Attach decoded user to request for downstream role checks
@@ -85,24 +89,26 @@ export const authenticate = (
     next();
   } catch (error) {
     console.error("JWT verification error:", error);
-    return res.status(403).json({
+    res.status(403).json({
       status: 403,
       success: false,
       message: "Invalid or expired token",
     });
+    return;
   }
 };
 
 export const authorizeRoles = (...roles: string[]) => {
-  return (req: any, res: Response, next: NextFunction) => {
+  return (req: any, res: Response, next: NextFunction): void => {
     // Use 'role' field from JWT payload
     const userRole = req.user?.role || req.user?.setRole;
     if (!roles.includes(userRole)) {
-      return res.status(403).json({
+      res.status(403).json({
         status: 403,
         success: false,
         message: `Access denied for role: ${userRole}`,
       });
+      return;
     }
     next();
   };

@@ -3,19 +3,47 @@ import UserAddress from "../../models/userAddress.model";
 
 export const addUserAddress = async (req: Request, res: Response) => {
   try {
-    // _id is obtained from the authenticated user (authToken), not from the request body
-    const _id = (req as any).user?.id;
+    // userId is obtained from the authenticated user (authToken), not from the request body
+    const userId = (req as any).user?.id;
     const { country, state, city, zipCode, address, street, landMark } =
       req.body;
-    if (!_id || !country || !state || !city || !zipCode || !address) {
+    if (!userId || !country || !state || !city || !zipCode || !address) {
       return res.status(400).json({
         status: 400,
         success: false,
         message: "Missing required address fields",
       });
     }
+
+    // Check if user exists and is active
+    const Admin = require("../../models/admin.model").default;
+    const user = await Admin.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        status: 404,
+        success: false,
+        message: "User not found",
+      });
+    }
+    if (!user.isActive) {
+      return res.status(403).json({
+        status: 403,
+        success: false,
+        message:
+          "User is not active. Please contact support if you believe this is an error.",
+      });
+    }
+    if (!user.isLoggedInActive) {
+      return res.status(401).json({
+        status: 401,
+        success: false,
+        message:
+          "Your session is inactive. Please log in to your account to continue adding addresses. If you have trouble logging in, please contact support for assistance.",
+      });
+    }
+
     const userAddress = await UserAddress.create({
-      _id,
+      userId,
       country,
       state,
       city,
@@ -25,26 +53,27 @@ export const addUserAddress = async (req: Request, res: Response) => {
       landMark,
     });
 
-    // Update addressInfo in Admin collection
+    // Optionally, you can push the address to an array in Admin collection
     try {
-      const Admin = require("../../models/admin.model").default;
       await Admin.findByIdAndUpdate(
-        _id,
+        userId,
         {
-          addressInfo: {
-            _id,
-            country,
-            state,
-            city,
-            zipCode,
-            address,
-            street,
-            landMark,
+          $push: {
+            addressInfo: {
+              userId,
+              country,
+              state,
+              city,
+              zipCode,
+              address,
+              street,
+              landMark,
+            },
           },
         },
         { new: true }
       );
-      console.log(`Admin addressInfo updated for _id: ${_id}`);
+      console.log(`Admin addressInfo updated for userId: ${userId}`);
     } catch (adminError) {
       console.error("Failed to update Admin addressInfo:", adminError);
     }

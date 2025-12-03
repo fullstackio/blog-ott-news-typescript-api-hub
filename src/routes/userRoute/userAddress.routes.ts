@@ -21,7 +21,7 @@ router
   .post(
     authenticate,
     authorizeRoles("superadmin", "admin", "user", "buyer", "seller", "agent"),
-    asyncMiddleware(UserAddressValidate(userAddressSchema)),
+    UserAddressValidate(userAddressSchema),
     addressController.addUserAddress
   );
 

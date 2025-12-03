@@ -9,7 +9,7 @@ const blogThumbnailStorage = new CloudinaryStorage({
     folder: "blog_thumbnails",
     allowed_formats: ["jpg", "jpeg", "png", "webp"],
     transformation: [{ width: 800, height: 600, crop: "limit" }],
-  },
+  } as any,
 });
 
 export const uploadBlogThumbnail = multer({ storage: blogThumbnailStorage });
@@ -21,7 +21,7 @@ const blogCategoryThumbnailStorage = new CloudinaryStorage({
     folder: "blog_category_thumbnails", // separate folder
     allowed_formats: ["jpg", "jpeg", "png", "webp"],
     transformation: [{ width: 600, height: 400, crop: "limit" }],
-  },
+  } as any,
 });
 
 export const uploadCategoryThumbnail = multer({

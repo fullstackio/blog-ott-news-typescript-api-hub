@@ -80,6 +80,14 @@ const AdminSchema: Schema = new Schema<IAdmin>(
       trim: true,
       required: true,
     },
+    isLoginAllowed: {
+      type: Boolean,
+      default: false,
+    },
+    isLoggedInActive: {
+      type: Boolean,
+      default: false,
+    },
     addressInfo: {
       _id: { type: String, default: "" },
       country: { type: String, default: "" },

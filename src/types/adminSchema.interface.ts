@@ -20,6 +20,8 @@ export interface IAdmin extends Document {
   address?: string;
   dob?: Date;
   age?: number;
+  isLoginAllowed?: boolean;
+  isLoggedInActive?: boolean;
   currentAge?: number;
   profileImage?: string;
   isActive: boolean;

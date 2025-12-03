@@ -15,7 +15,7 @@ export const storage = new CloudinaryStorage({
     folder: "blogs/thumbnails", // ✅ Finalize your preferred folder
     allowed_formats: ["jpg", "jpeg", "png", "webp"],
     transformation: [{ width: 800, height: 600, crop: "limit" }],
-  },
+  } as any,
 });
 
 // // 🟢 Blog Category Thumbnail Storage (blogs/category-thumbnails)
@@ -25,7 +25,7 @@ export const blogCategoryThumbnailStorage = new CloudinaryStorage({
     folder: "blogs/category-thumbnails",
     allowed_formats: ["jpg", "jpeg", "png", "webp"],
     transformation: [{ width: 600, height: 400, crop: "limit" }],
-  },
+  } as any,
 });
 
 export { cloudinary };

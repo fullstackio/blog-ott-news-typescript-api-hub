@@ -1,5 +1,5 @@
 export interface IAddress extends Document {
-  _id?: string;
+  userId: string;
   country: string;
   countryCode?: string;
   state: string;

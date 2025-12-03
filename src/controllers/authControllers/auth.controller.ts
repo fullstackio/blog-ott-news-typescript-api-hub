@@ -129,6 +129,8 @@ export const signUp = async (req: any, res: any) => {
       setSystemServerInfo: serverInfo,
       accountAtmosphere,
       accountAtmosphereName,
+      isLoginAllowed: false,
+      isLoggedInActive: false,
       addressInfo: {
         country,
         state,
@@ -439,7 +441,6 @@ export const signIn = async (req: any, res: any) => {
       });
     }
 
-    // Authenticated successfully
     // Update or create user login record
     const loginData = {
       id: isUserExist._id.toString(),
@@ -460,8 +461,9 @@ export const signIn = async (req: any, res: any) => {
       loginData,
       { upsert: true, new: true }
     );
-    // Update lastLogin in Admin collection
+    // Update lastLogin and isLoggedInActive in Admin collection
     isUserExist.lastLogin = new Date();
+    isUserExist.isLoggedInActive = true;
     await isUserExist.save();
     // Use duration strings for JWT expiration
     const payload = {

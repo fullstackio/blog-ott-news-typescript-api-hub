@@ -4,7 +4,7 @@ import { IAddress } from "../types/addressSchema.interface";
 
 const UserAddressSchema: Schema = new Schema<IAddress>(
   {
-    _id: { type: String, required: true, index: true },
+    userId: { type: String, required: true, index: true },
     country: { type: String, required: true },
     state: { type: String, required: true },
     city: { type: String, required: true },
