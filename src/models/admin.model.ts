@@ -80,19 +80,29 @@ const AdminSchema: Schema = new Schema<IAdmin>(
       trim: true,
       required: true,
     },
+    addressInfo: {
+      _id: { type: String, default: "" },
+      country: { type: String, default: "" },
+      state: { type: String, default: "" },
+      city: { type: String, default: "" },
+      zipCode: { type: String, default: "" },
+      address: { type: String, default: "" },
+      street: { type: String, default: "" },
+      landMark: { type: String, default: "" },
+    },
     country: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
     },
     state: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
     },
     city: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
     },
     dob: {

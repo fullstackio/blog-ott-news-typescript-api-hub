@@ -93,20 +93,6 @@ export const registrationFormSchema = z
           message: "Invalid user gender",
         })
     ),
-    country: z
-      .string()
-      .min(1, { message: "Country is required" })
-      .max(100, { message: "Country must be under 100 characters" }),
-
-    state: z
-      .string()
-      .min(1, { message: "State is required" })
-      .max(100, { message: "State must be under 100 characters" }),
-
-    city: z
-      .string()
-      .min(1, { message: "City is required" })
-      .max(100, { message: "City must be under 100 characters" }),
 
     accountAtmosphere: z
       .string()

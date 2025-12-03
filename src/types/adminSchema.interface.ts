@@ -13,7 +13,7 @@ export interface IAdmin extends Document {
   passWord: string;
   role: "superadmin" | "admin" | "user" | "buyer" | "seller" | "agent"; // you can extend this if needed
   phone?: string;
-  countryCode?: string;
+  addressInfo?: string;
   country?: string;
   state?: string;
   city?: string;

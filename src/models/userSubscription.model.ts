@@ -2,8 +2,8 @@ import mongoose, { Schema } from "mongoose";
 import { IUserSubscription } from "../types/userSubscription.interface";
 
 const UserSubscriptionSchema = new Schema<IUserSubscription>({
-  firstName: { type: String, required: true },
-  lastName: { type: String, required: true },
+  firstName: { type: String, required: false },
+  lastName: { type: String, required: false },
   email: { type: String, required: true, unique: true },
   deviceInfo: { type: Object },
   isActive: { type: Boolean, default: true },

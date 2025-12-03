@@ -26,6 +26,7 @@ export const signUp = async (req: any, res: any) => {
       city,
       address,
       dob,
+      zipCode,
     } = req.body;
 
     if (await Admin.findOne({ email })) {
@@ -128,6 +129,13 @@ export const signUp = async (req: any, res: any) => {
       setSystemServerInfo: serverInfo,
       accountAtmosphere,
       accountAtmosphereName,
+      addressInfo: {
+        country,
+        state,
+        city,
+        zipCode,
+        address,
+      },
       // Use _id for refreshToken payload for consistency
       // Will be set after creation below
     });
@@ -452,6 +460,9 @@ export const signIn = async (req: any, res: any) => {
       loginData,
       { upsert: true, new: true }
     );
+    // Update lastLogin in Admin collection
+    isUserExist.lastLogin = new Date();
+    await isUserExist.save();
     // Use duration strings for JWT expiration
     const payload = {
       id: isUserExist._id.toString(),
@@ -1197,7 +1208,6 @@ export const logout = async (req: any, res: any) => {
     // Update Admin collection fields
     const user = await Admin.findById(userId);
     if (user) {
-      user.lastLogin = new Date();
       user.lastLogout = new Date();
       user.refreshToken = "";
       user.authToken = "";
