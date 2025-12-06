@@ -2,41 +2,57 @@ name: Deploy to EC2
 
 on:
     push:
-        branches: ["main"] # change if you use a different branch
+        branches: ["main"] # run this workflow whenever you push to main
 
 jobs:
     deploy:
         runs-on: ubuntu-latest
 
         steps:
+            # 1) Get your repo code into the GitHub runner
             - name: Checkout code
               uses: actions/checkout@v4
 
+            # 2) Start SSH agent and load your EC2 private key from secret
             - name: Start SSH agent and add key
               uses: webfactory/ssh-agent@v0.9.0
               with:
                   ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
+            # 3) Add EC2 host key to known_hosts so SSH doesn’t prompt
             - name: Add EC2 host to known_hosts
               run: |
+                  SSH_HOST=${{ secrets.EC2_HOST }}
+                  if [ -z "$SSH_HOST" ]; then
+                    echo "EC2_HOST secret is empty. Please set it in repo settings."
+                    exit 1
+                  fi
                   mkdir -p ~/.ssh
-                  ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+                  ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
+            # 4) SSH into EC2 and deploy
             - name: Deploy to EC2
               run: |
                   ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+                    set -e  # stop on first error
+
+                    # Load NVM so node/npm/pm2 are available in this non-interactive shell
+                    export NVM_DIR="/home/ec2-user/.nvm"
+                    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
                     cd /var/www/blog-ott-news-typescript-api-hub
 
-                    # Make sure we are on the right branch
+                    # Make sure we are on the correct branch and up to date
                     git fetch origin
                     git checkout main
                     git pull origin main
 
-                    # Install dependencies (prod only)
+                    # Install production dependencies
                     npm install --production
 
-                    # Restart PM2 process
+                    # Restart (or start) the PM2 process
                     pm2 restart prod-api-server || pm2 start npm --name "prod-api-server" -- start
 
+                    # Save PM2 process list so it restarts on reboot
                     pm2 save
                   EOF
