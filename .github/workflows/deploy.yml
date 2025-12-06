@@ -40,6 +40,9 @@ jobs:
                     export NVM_DIR="/home/ec2-user/.nvm"
                     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
+                    # Fix PATH so pm2, node, npm become available
+                    export PATH="$NVM_DIR/versions/node/$(ls $NVM_DIR/versions/node)/bin:$PATH"
+
                     cd /var/www/blog-ott-news-typescript-api-hub
 
                     # Make sure we are on the correct branch and up to date
