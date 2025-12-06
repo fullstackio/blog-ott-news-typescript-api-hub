@@ -30,21 +30,27 @@ jobs:
             - name: Deploy to EC2
               run: |
                   ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-                    set -e
+                    run: |
+                        ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+                          set -e
 
-                    # Load NVM so node/npm exist
-                    export NVM_DIR="/home/ec2-user/.nvm"
-                    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+                          # Load NVM so node/npm exist
+                          export NVM_DIR="/home/ec2-user/.nvm"
+                          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
-                    cd /var/www/blog-ott-news-typescript-api-hub
+                          cd /var/www/blog-ott-news-typescript-api-hub
+                          git fetch origin
+                          git checkout main
+                          git pull origin main
 
-                    git fetch origin
-                    git checkout main
-                    git pull origin main
+                          npm install --production
 
-                    npm install --production
+                          # Install pm2 globally if not present
+                          if ! command -v pm2 &> /dev/null; then
+                            npm install -g pm2
+                          fi
 
-                    pm2 restart prod-api-server || pm2 start npm --name "prod-api-server" -- start
+                          pm2 restart prod-api-server || pm2 start npm --name "prod-api-server" -- start
 
-                    pm2 save
-                  EOF
+                          pm2 save
+                        EOF
