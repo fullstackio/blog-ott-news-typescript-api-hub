@@ -33,7 +33,7 @@ jobs:
                     set -e
                     export NVM_DIR="/home/ec2-user/.nvm"
                     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-                    export PATH="$NVM_DIR/versions/node/$(ls $NVM_DIR/versions/node)/bin:$PATH"
+                    export PATH="$NVM_DIR/versions/node/$(ls $NVM_DIR/versions/node)/bin:$PATH:$(npm bin -g)"
                     cd /var/www/blog-ott-news-typescript-api-hub
                     git fetch origin
                     git checkout main
@@ -41,11 +41,12 @@ jobs:
                     npm install --production
                     if ! command -v pm2 &> /dev/null; then
                       npm install -g pm2
+                      export PATH="$(npm bin -g):$PATH"
                     fi
                     pm2 restart prod-api-server || pm2 start npm --name "prod-api-server" -- start
                     pm2 save
                   '
 
-                    pm2 restart prod-api-server || pm2 start npm --name "prod-api-server" -- start
+                      pm2 restart prod-api-server || pm2 start npm --name "prod-api-server" -- start
 
-                    pm2 save
+                      pm2 save
