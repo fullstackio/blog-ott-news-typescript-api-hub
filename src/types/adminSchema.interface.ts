@@ -41,6 +41,7 @@ export interface IAdmin extends Document {
   accountAtmosphereName?: string;
   otp?: number;
   otpExpires?: Date;
+  userDataCompletionStatus?: string;
   refreshToken?: string;
   authToken?: string;
   resetToken?: string;
