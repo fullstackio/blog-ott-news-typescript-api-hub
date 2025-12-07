@@ -37,5 +37,4 @@ jobs:
             pm2 start all
             pm2 save
             pm2 startup systemd
-      - name: Deployment Complete
-        run: echo "Deployment completed."
+            echo "Deployment completed on AWS EC2 instance."
