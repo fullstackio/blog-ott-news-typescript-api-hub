@@ -1,52 +1,52 @@
 name: Deploy to EC2
 
 on:
-    push:
-        branches: ["main"]
+  push:
+    branches: ["main"]
 
 jobs:
-    deploy:
-        runs-on: ubuntu-latest
+  deploy:
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-            - name: Start SSH agent and add key
-              uses: webfactory/ssh-agent@v0.9.0
-              with:
-                  ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+      - name: Start SSH agent and add key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-            - name: Add EC2 host to known_hosts
-              run: |
-                  SSH_HOST=${{ secrets.EC2_HOST }}
-                  if [ -z "$SSH_HOST" ]; then
-                    echo "EC2_HOST secret is empty. Please set it in repo settings."
-                    exit 1
-                  fi
-                  mkdir -p ~/.ssh
-                  ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+      - name: Add EC2 host to known_hosts
+        run: |
+          SSH_HOST=${{ secrets.EC2_HOST }}
+          if [ -z "$SSH_HOST" ]; then
+            echo "EC2_HOST secret is empty. Please set it in repo settings."
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
-            - name: Deploy to EC2
-              run: |
-                  ssh -T ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} '
-                    set -e
-                    export NVM_DIR="/home/ec2-user/.nvm"
-                    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-                    export PATH="$NVM_DIR/versions/node/$(ls $NVM_DIR/versions/node)/bin:$PATH:$(npm bin -g)"
-                    cd /var/www/blog-ott-news-typescript-api-hub
-                    git fetch origin
-                    git checkout main
-                    git pull origin main
-                    npm install --production
-                    if ! command -v pm2 &> /dev/null; then
-                      npm install -g pm2
-                      export PATH="$(npm bin -g):$PATH"
-                    fi
-                    pm2 restart prod-api-server || pm2 start npm --name "prod-api-server" -- start
-                    pm2 save
-                  '
+      - name: Deploy to EC2
+        run: |
+          ssh -T ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} '
+            set -e
+            export NVM_DIR="/home/ec2-user/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            export NPM_GLOBAL_BIN="$(npm bin -g)"
+            export PATH="$NVM_DIR/versions/node/$(ls $NVM_DIR/versions/node)/bin:$PATH:$NPM_GLOBAL_BIN"
+            cd /var/www/blog-ott-news-typescript-api-hub
+            git fetch origin
+            git checkout main
+            git pull origin main
+            npm install --production
+            if ! command -v pm2 &> /dev/null; then
+              npm install -g pm2
+            fi
+            pm2 restart prod-api-server || pm2 start npm --name "prod-api-server" -- start
+            pm2 save
+          '
 
-                      pm2 restart prod-api-server || pm2 start npm --name "prod-api-server" -- start
+                pm2 restart prod-api-server || pm2 start npm --name "prod-api-server" -- start
 
-                      pm2 save
+                pm2 save
