@@ -25,7 +25,11 @@ jobs:
         run: npm run build
 
       - name: Archive production artifacts
-        run: tar -czf app.tar.gz .
+        run: |
+          tar --warning=no-file-changed -czf app.tar.gz .
+          # Updated tar command to prevent non-zero exit code if files change during archiving
+          # Using --warning=no-file-changed option
+          run: tar --warning=no-file-changed -czf app.tar.gz .
 
       - name: Copy files to EC2
         uses: appleboy/scp-action@v0.1.7
