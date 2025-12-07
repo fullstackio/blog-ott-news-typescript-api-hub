@@ -31,7 +31,7 @@ jobs:
             git pull origin main
             npm install --production
             npm run build
-            pm2 restart all || pm2 start dist/server.js --name "prod-api-server"
+            pm2 restart all || pm2 start 3 || pm2 start prod-api-server
             pm2 save
             pm2 startup
             echo "Deployment completed."
