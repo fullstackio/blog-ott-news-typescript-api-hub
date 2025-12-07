@@ -1,70 +1,51 @@
-name: Deploy to EC2 New Server
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      - name: Start SSH agent and add key
-        uses: webfactory/ssh-agent@v0.9.0
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
         with:
-          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+          node-version: "22"
 
-      - name: Add EC2 host to known_hosts
-        run: |
-          SSH_HOST=${{ secrets.EC2_HOST }}
-          if [ -z "$SSH_HOST" ]; then
-            echo "EC2_HOST secret is empty. Please set it in repo settings."
-            exit 1
-          fi
-          mkdir -p ~/.ssh
-          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Deploy to EC2
-        run: |
-          ssh -T ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} '
-            (
-              set -e
-              export NVM_DIR="/home/ec2-user/.nvm"
-              [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-              export NPM_GLOBAL_BIN="$(npm bin -g)"
-              export PATH="$NVM_DIR/versions/node/$(ls $NVM_DIR/versions/node)/bin:$PATH:$NPM_GLOBAL_BIN"
-              cd /var/www/blog-ott-news-typescript-api-hub
-              git fetch origin
-              git checkout main
-              git pull origin main
-              npm install --production
-              if ! command -v pm2 &> /dev/null; then
-                npm install -g pm2
-              fi
-              pm2 restart prod-api-server || pm2 start npm --name "prod-api-server" -- start
-              pm2 save
-            )
-          '
+      - name: Build project
+        run: npm run build
 
-                  - name: Deploy and restart server on EC2
-                    run: |
-                      ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "bash -s" <<'ENDSSH'
-                        set -e
-                        export NVM_DIR="/home/ec2-user/.nvm"
-                        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-                        export PATH="$NVM_DIR/versions/node/$(ls $NVM_DIR/versions/node)/bin:$PATH:$(npm bin -g)"
-                        cd /var/www/blog-ott-news-typescript-api-hub
-                        git fetch origin
-                        git checkout main
-                        git pull origin main
-                        npm install --production
-                        if ! command -v pm2 &> /dev/null; then
-                          npm install -g pm2
-                          export PATH="$(npm bin -g):$PATH"
-                        fi
-                        pm2 start npm --name "prod-api-server" -- start || pm2 restart prod-api-server
-                        pm2 save
-                      ENDSSH
+      - name: Archive production artifacts
+        run: tar -czf app.tar.gz .
+
+      - name: Copy files to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          source: "app.tar.gz"
+          target: "~/app"
+
+      - name: Deploy on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            cd ~/app
+            tar -xzf app.tar.gz
+            npm install --production
+            pm2 restart all || pm2 start "prod-api-server"
