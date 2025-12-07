@@ -29,9 +29,8 @@ jobs:
           script: |
             cd ~/app
             git pull origin main
-            npm install --production
-            npm run build
-            pm2 restart all || pm2 start 3 || pm2 start prod-api-server
+            npm install 
+            pm2 restart all 
             pm2 save
             pm2 startup
             echo "Deployment completed."
