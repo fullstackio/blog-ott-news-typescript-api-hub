@@ -29,8 +29,4 @@ jobs:
           script: |
             cd ~/app
             git pull origin main
-            npm install 
-            pm2 restart all 
-            pm2 save
-            pm2 startup
             echo "Deployment completed."
