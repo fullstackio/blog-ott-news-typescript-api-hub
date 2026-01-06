@@ -1,7 +1,11 @@
 // swagger.ts
+import dotenv from "dotenv";
+dotenv.config();
 import swaggerJSDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 import { Express } from "express";
+
+const PORT = process.env.PORT || 5006;
 
 const options = {
   definition: {
@@ -13,7 +17,7 @@ const options = {
     },
     servers: [
       {
-        url: "http://localhost:5006/api/v2",
+        url: `http://localhost:8060/api/v2`,
       },
     ],
     components: {

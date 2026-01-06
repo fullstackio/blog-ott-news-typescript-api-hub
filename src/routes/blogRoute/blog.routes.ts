@@ -85,9 +85,10 @@ router
  *       200:
  *         description: List of blogs for frontend
  */
-router
-  .route("/blog-listing")
-  .get(apiKeyAuth, blogControllers.getAllFrontEndBlogs);
+// router
+//   .route("/blog-listing")
+//   .get(apiKeyAuth, blogControllers.getAllFrontEndBlogs);
+router.route("/blog-listing").get(blogControllers.getAllFrontEndBlogs);
 router.route("/draft-blogs").get(apiKeyAuth, blogControllers.getDraftUsers);
 router.route("/blog/:id").get(blogControllers.singleBlog);
 router
