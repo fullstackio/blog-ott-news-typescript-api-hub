@@ -64,7 +64,52 @@ export const addBlog = async (req: Request, res: Response) => {
     }
 
     // ✅ Handle optional image from multer/cloudinary
-    const postThumbnailUrl = (req.file as any)?.path || null;
+    console.log("[addBlog] req.file:", req.file);
+    
+    let postThumbnail = null;
+    if (req.file) {
+      try {
+        // Try to use Cloudinary URL
+        const file: any = req.file;
+        postThumbnail = file.secure_url || file.url || null;
+        if (!postThumbnail) throw new Error("Cloudinary URL missing");
+      } catch (cloudErr) {
+        // Fallback: Save file locally if Cloudinary fails
+        try {
+          const fs = require("fs");
+          const path = require("path");
+          const uploadsDir = path.join(__dirname, "../../../uploads/blog/thumbnail");
+          if (!fs.existsSync(uploadsDir)) {
+            fs.mkdirSync(uploadsDir, { recursive: true });
+          }
+          // req.file.buffer may not be available if multer-storage-cloudinary fails, so fallback to req.file.path
+          let localFilePath = null;
+          if (req.file.buffer) {
+            // If buffer is available (memory storage)
+            const ext = path.extname(req.file.originalname) || ".jpg";
+            const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}${ext}`;
+            localFilePath = path.join(uploadsDir, fileName);
+            fs.writeFileSync(localFilePath, req.file.buffer);
+          } else if (req.file.path) {
+            // If file is already saved by multer (disk storage)
+            const ext = path.extname(req.file.originalname) || ".jpg";
+            const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}${ext}`;
+            localFilePath = path.join(uploadsDir, fileName);
+            fs.copyFileSync(req.file.path, localFilePath);
+          }
+          if (localFilePath) {
+            // Save relative path for serving via static route
+            postThumbnail = `/uploads/blog/thumbnail/${path.basename(localFilePath)}`;
+          } else {
+            postThumbnail = null;
+          }
+          console.error("[addBlog] Cloudinary upload failed, saved locally:", postThumbnail);
+        } catch (localErr) {
+          console.error("[addBlog] Local file save failed:", localErr);
+          postThumbnail = null;
+        }
+      }
+    }
 
     const deviceInfo = getDeviceInfo(req);
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -181,7 +226,7 @@ export const addBlog = async (req: Request, res: Response) => {
       title,
       excerp,
       content,
-      postThumbnail: postThumbnailUrl,
+      postThumbnail,
       postBanner,
       postCategory: finalPostCategory, // This will use default if undefined
       tags: tagIds,
