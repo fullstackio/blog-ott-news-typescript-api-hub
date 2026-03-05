@@ -1,38 +1,3 @@
-/**
- * @swagger
- * tags:
- *   name: Blog
- *   description: Blog management and categories
- */
-
-/**
- * @swagger
- * /blog/add-blog:
- *   post:
- *     summary: Add a new blog
- *     tags: [Blog]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               postThumbnail:
- *                 type: string
- *                 format: binary
- *               title:
- *                 type: string
- *               content:
- *                 type: string
- *     responses:
- *       201:
- *         description: Blog created
- *       400:
- *         description: Validation error
- */
 import {
   authenticate,
   authorizeRoles,
@@ -45,6 +10,7 @@ const express = require("express");
 const router = express.Router();
 const blogControllers = require("../../controllers/BlogControllers/blog.controllers");
 const blogCategoryControllers = require("../../controllers/BlogControllers/blogCategory.controllers");
+const blogTagControllers = require("../../controllers/BlogControllers/blogTags.controllers");
 
 router
   .route("/add-blog")
@@ -55,18 +21,6 @@ router
     blogControllers.addBlog
   );
 
-/**
- * @swagger
- * /blog/all-blogs:
- *   get:
- *     summary: Get all blogs (admin/user)
- *     tags: [Blog]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of blogs
- */
 router
   .route("/all-blogs")
   .get(
@@ -75,27 +29,26 @@ router
     blogControllers.getAllBlogs
   );
 
-/**
- * @swagger
- * /blog/blog-listing:
- *   get:
- *     summary: Get all blogs (frontend)
- *     tags: [Blog]
- *     responses:
- *       200:
- *         description: List of blogs for frontend
- */
-router
-  .route("/blog-listing")
-  .get(apiKeyAuth, blogControllers.getAllFrontEndBlogs);
-router.route("/draft-blogs").get(apiKeyAuth, blogControllers.getDraftUsers);
-router.route("/blog/:id").get(blogControllers.singleBlog);
+
+router.route("/trash-blogs").get(authenticate,
+    authorizeRoles("user", "admin", "superadmin"), blogControllers.getTrashBlog);
+router.route("/blog/:id").get(authenticate,
+    authorizeRoles("user", "admin", "superadmin"), blogControllers.singleBlog);
 router
   .route("/blog/:id")
   .put(upload.single("postThumbnail"), blogControllers.editBlog);
-router.route("/delete-soft-blog/:id").post(blogControllers.deleteBlogSoft);
-router.route("/delete-hrd-blog/:id").delete(blogControllers.deleteBlogHard);
-router.route("/delete-blog/:id").delete(blogControllers.deleteBlogDirect);
+router.route("/delete-soft-blog/:id").put(authenticate,
+    authorizeRoles("user", "admin", "superadmin"), blogControllers.deleteBlogSoft);
+router.route("/delete-hrd-blog/:id").delete(authenticate,
+    authorizeRoles("user", "admin", "superadmin"), blogControllers.deleteBlogHard);
+router.route("/delete-blog/:id").delete(authenticate,
+    authorizeRoles("user", "admin", "superadmin"), blogControllers.deleteBlogDirect);
+
+// draft blog
+router.route("/draft-blog/:id").put(authenticate,
+    authorizeRoles("user", "admin", "superadmin"), blogControllers.draftBlog);
+router.route("/draft-blogs").get(authenticate,
+    authorizeRoles("user", "admin", "superadmin"), blogControllers.getDraftBlog);
 // Add blog category
 router
   .route("/add-category")
@@ -123,7 +76,15 @@ router
 router
   .route("/delete-category/:id")
   .delete(blogCategoryControllers.deleteBlogCategoryDirect);
-// //POST /api/add-category
-// // Content-Type: multipart/form-data
+
+  router.route("/add-tags").post(blogTagControllers.addBlogTag);
+  router.route("/all-tags").get(blogTagControllers.getAllBlogTags);
+
+
+
+// For frontend part only
+  router
+  .route("/blog-listing")
+  .get(apiKeyAuth, blogControllers.getAllFrontEndBlogs);
 
 export default router;

@@ -1,6 +1,6 @@
 // utils/cloudinary.ts
 import { v2 as cloudinary } from "cloudinary";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
+import CloudinaryStorage from "multer-storage-cloudinary";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
@@ -9,7 +9,7 @@ cloudinary.config({
 });
 
 // 🔵 Blog Thumbnail Storage (blogs/thumbnails)
-export const storage = new CloudinaryStorage({
+export const storage = CloudinaryStorage({
   cloudinary,
   params: {
     folder: "blogs/thumbnails", // ✅ Finalize your preferred folder
@@ -19,7 +19,7 @@ export const storage = new CloudinaryStorage({
 });
 
 // // 🟢 Blog Category Thumbnail Storage (blogs/category-thumbnails)
-export const blogCategoryThumbnailStorage = new CloudinaryStorage({
+export const blogCategoryThumbnailStorage = CloudinaryStorage({
   cloudinary,
   params: {
     folder: "blogs/category-thumbnails",

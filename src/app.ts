@@ -3,12 +3,27 @@ import corsMiddleware from "./middlewares/cors/cors.middleware";
 import loggerMiddleware from "./middlewares/loggers/logger.middleware";
 import routes from "./routes/routes";
 import { setupSwagger } from "./swagger";
+import session from "express-session";
+import passport from "./config/googleAuth";
 
 const app = express();
 
 // Body Parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Session middleware (required for passport)
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "your_secret_key",
+    resave: false,
+    saveUninitialized: false,
+  })
+);
+
+// Passport middleware
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Middlewares
 app.use(corsMiddleware);

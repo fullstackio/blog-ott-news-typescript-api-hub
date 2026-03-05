@@ -13,6 +13,8 @@ export interface IUserLogin extends Document {
   isActive: boolean;
   currentStatus?: "active" | "hibernating" | "logout" | "background";
   devices?: string[];
+  googleId?: string;
+  provider?: string;
   createdAt: Date;
   updatedAt: Date;
 }
