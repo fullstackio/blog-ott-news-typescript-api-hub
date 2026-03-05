@@ -28,11 +28,23 @@ export interface IBlog extends Document {
   updatedAt: Date;
 }
 
+
 export interface IBlogCategory extends Document {
   name: string;
   slug: string;
   description?: string;
   categoryThumbnail?: string;
+  isActive: boolean;
+  isDeleted: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+
+
+export interface IBlogTag extends Document {
+  name: string;
+  slug: string;
   isActive: boolean;
   isDeleted: boolean;
   createdAt: Date;

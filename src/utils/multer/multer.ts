@@ -1,9 +1,9 @@
 import multer from "multer";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
+import CloudinaryStorage from "multer-storage-cloudinary";
 import { cloudinary } from "../cloudinary/cloudinary";
 
 // Blog post thumbnail upload
-const blogThumbnailStorage = new CloudinaryStorage({
+const blogThumbnailStorage = CloudinaryStorage({
   cloudinary,
   params: {
     folder: "blog_thumbnails",
@@ -15,7 +15,7 @@ const blogThumbnailStorage = new CloudinaryStorage({
 export const uploadBlogThumbnail = multer({ storage: blogThumbnailStorage });
 
 // // Blog category thumbnail upload
-const blogCategoryThumbnailStorage = new CloudinaryStorage({
+const blogCategoryThumbnailStorage = CloudinaryStorage({
   cloudinary,
   params: {
     folder: "blog_category_thumbnails", // separate folder

@@ -44,19 +44,20 @@ export const registrationFormSchema = z
       }),
 
     dob: z.preprocess(
-      (arg) => (arg ? new Date(String(arg)) : undefined),
+      (arg) => {
+        if (arg === undefined || arg === null || arg === "") return undefined;
+        return new Date(String(arg));
+      },
       z
         .date()
-        .optional()
-        .refine((d) => (d === undefined ? true : !isNaN(d.getTime())), {
-          message: "Invalid date format for dob",
+        .refine((d) => d !== undefined && !isNaN(d.getTime()), {
+          message: "DOB is required and must be a valid date",
         })
-        .refine((d) => (d === undefined ? true : d <= new Date()), {
+        .refine((d) => d <= new Date(), {
           message: "DOB cannot be in the future",
         })
         .refine(
           (d) => {
-            if (!d) return true;
             const minAge = 13;
             const cutoff = new Date();
             cutoff.setFullYear(cutoff.getFullYear() - minAge);

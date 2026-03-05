@@ -31,6 +31,12 @@ const BlogSchema: Schema = new Schema<IBlog>(
         ref: "BlogCategory", // this name is need to defined in Blog Category Schema
       },
     ],
+    tags: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "BlogTag",
+      },
+    ],
     authInfo: {
       id: { type: String },
       firstName: { type: String },

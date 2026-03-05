@@ -62,12 +62,47 @@ export const signUp = async (req: any, res: any) => {
     // Calculate age from dob if provided
     const calculateAge = (dateLike: any) => {
       if (!dateLike) return undefined;
-      const birth = new Date(dateLike);
+      let birth;
+      // Try to parse as ISO first
+      if (typeof dateLike === "string") {
+        // If format is DD/MM/YYYY or MM/DD/YYYY, normalize to YYYY-MM-DD
+        const parts = dateLike.split(/[\/\-]/);
+        if (parts.length === 3) {
+          // If year is first (YYYY-MM-DD)
+          if (parts[0].length === 4) {
+            birth = new Date(dateLike);
+          } else {
+            // If year is last (DD/MM/YYYY or MM/DD/YYYY)
+            // Try DD/MM/YYYY first
+            const d = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            const y = parseInt(parts[2], 10);
+            // If month > 12, assume DD/MM/YYYY
+            if (m > 12) {
+              birth = new Date(`${y}-${m.toString().padStart(2, "0")}-${d.toString().padStart(2, "0")}`);
+            } else {
+              // If day > 12, assume MM/DD/YYYY
+              if (d > 12) {
+                birth = new Date(`${y}-${d.toString().padStart(2, "0")}-${m.toString().padStart(2, "0")}`);
+              } else {
+                // Ambiguous, default to MM/DD/YYYY
+                birth = new Date(`${y}-${m.toString().padStart(2, "0")}-${d.toString().padStart(2, "0")}`);
+              }
+            }
+          }
+        } else {
+          birth = new Date(dateLike);
+        }
+      } else {
+        birth = new Date(dateLike);
+      }
       if (isNaN(birth.getTime())) return undefined;
       const now = new Date();
       let age = now.getFullYear() - birth.getFullYear();
-      const m = now.getMonth() - birth.getMonth();
-      if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) {
+      if (
+        now.getMonth() < birth.getMonth() ||
+        (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate())
+      ) {
         age--;
       }
       return age;
@@ -213,12 +248,49 @@ export const signUp = async (req: any, res: any) => {
 
 export const verifyOtp = async (req: any, res: any) => {
   try {
-    const { email, otp } = req.body;
-    if (!email || !otp) {
+    // Get token from headers
+    const token = req.headers["authorization"]?.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({ message: "Authentication token missing" });
+    }
+    // Decode token with error handling for expiration
+    let decoded;
+    try {
+      decoded = JWT.verify(token, process.env.JWT_SECREATE_TOKEN!);
+    } catch (err: any) {
+      if (err.name === "TokenExpiredError") {
+        return res.status(401).json({
+          status: 401,
+          success: false,
+          message: "Authentication token expired. Please login again.",
+        });
+      }
+      return res.status(401).json({
+        status: 401,
+        success: false,
+        message: "Invalid authentication token.",
+      });
+    }
+    const authorInfo = {
+      id: decoded.id,
+      role: decoded.setRole,
+      userEmail: decoded.setemail,
+    };
+    console.log("Get login details", authorInfo, decoded);
+    const { otp } = req.body;
+    const email = authorInfo.userEmail;
+    if (!email) {
       return res.status(400).json({
         status: 400,
         success: false,
-        message: "Email and OTP are required",
+        message: "Email not found in authentication token",
+      });
+    }
+    if (otp === undefined || otp === null || String(otp).trim() === "") {
+      return res.status(400).json({
+        status: 400,
+        success: false,
+        message: "OTP is required in request body and must not be empty",
       });
     }
     const user = await Admin.findOne({ email });
@@ -479,7 +551,7 @@ export const signIn = async (req: any, res: any) => {
       isDeleted: isUserExist.isDeleted === true,
     };
     const accessToken = JWT.sign(payload, process.env.JWT_SECREATE_TOKEN, {
-      expiresIn: "15m",
+      expiresIn: "6h",
     });
     const refreshToken = JWT.sign(
       { id: isUserExist._id },
@@ -987,7 +1059,7 @@ export const verifyPasswordResetOtp = async (req: any, res: any) => {
       "x-id": req.headers["x-id"],
     });
 
-    // Get otp from body, user._id, userId, email, and id from headers
+    // Get otp from body, and user._id, userId, email, and id from headers
     const { otp } = req.body;
     const userId = req.headers["x-user-id"] || req.headers["user-id"];
     const email = req.headers["x-user-email"] || req.headers["user-email"];

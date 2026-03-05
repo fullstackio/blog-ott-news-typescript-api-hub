@@ -23,6 +23,8 @@ const UserLoginSchema: Schema = new Schema<IUserLogin>(
       type: [String], // Array of device IDs or tokens
       default: [],
     },
+    googleId: { type: String },
+    provider: { type: String },
   },
   {
     timestamps: true,

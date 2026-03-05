@@ -3,6 +3,7 @@ const router = express.Router();
 const adminControllers = require("../../controllers/authControllers/auth.controller");
 import {
   authenticate,
+  authenticateForOtpVerification,
   authorizeRoles,
 } from "../../middlewares/apiAccessibility/authenticate";
 import { SingnInValidate } from "../../middlewares/authMiddleware/signinValidator.middleware";
@@ -14,6 +15,10 @@ import { resetPasswordValidation } from "../../validation/authValidator/resetPas
 import { userOtpValidation } from "../../validation/authValidator/signin.userValidator";
 import { loginFormSchema } from "../../validation/authValidator/signin.validator";
 import { registrationFormSchema } from "../../validation/authValidator/signup.validator";
+import {
+  googleAuth,
+  googleAuthCallback,
+} from "../../controllers/authControllers/googleAuth.controller";
 
 // Signin route
 
@@ -21,9 +26,15 @@ router
   .route("/signin")
   .post(SingnInValidate(loginFormSchema), adminControllers.signIn);
 
+
 router
   .route("/verify-user-account")
-  .post(SingnInValidate(userOtpValidation), adminControllers.verifyOtp);
+  .post(
+    authenticateForOtpVerification,
+    authorizeRoles("superadmin", "admin", "user"),
+    SingnInValidate(userOtpValidation),
+    adminControllers.verifyOtp
+  );
 router
   .route("/signup")
   .post(SingnUPValidate(registrationFormSchema), adminControllers.signUp);
@@ -97,5 +108,9 @@ router
     authorizeRoles("superadmin", "admin", "user", "buyer", "seller", "agent"),
     adminControllers.logout
   );
+
+// Google OAuth routes
+router.get("/google", googleAuth);
+router.get("/google/callback", googleAuthCallback);
 
 export default router;
